@@ -13,8 +13,6 @@ class HandleRequests(BaseHTTPRequestHandler):
     def do_GET(self):
         """Handles GET requests to the server """
 
-        # Set the response code to 'Ok'
-        self._set_headers(200)
         response = {}  # Default response
 
         # Parse the URL and capture the tuple that is returned
@@ -48,14 +46,18 @@ class HandleRequests(BaseHTTPRequestHandler):
             else:
                 response = get_all_orders()
 
+        if response is None:
+            self._set_headers(404)
+            response = {"message": f'{"That metal is not currently in stock for jewelry." if resource == "metals" else ""}{"That order was never placed, or was cancelled." if resource == "orders" else ""}'}
+
         else:
-            response = []
+            # Set the response code to 'Ok'
+            self._set_headers(200)
 
         self.wfile.write(json.dumps(response).encode())
 
     def do_POST(self):
         """Handles POST requests to the server """
-        self._set_headers(201)
         content_len = int(self.headers.get('content-length', 0))
         post_body = self.rfile.read(content_len)
 
@@ -69,14 +71,41 @@ class HandleRequests(BaseHTTPRequestHandler):
         new_order = None
 
         if resource == "orders":
+            if post_body.get("metalId") is None:
+                self._set_headers(400)
+                response = {"message": " metalId is required "}
+                self.wfile.write(json.dumps(response).encode())
+                return
+            if post_body.get("sizeId") is None:
+                self._set_headers(400)
+                response = {"message": " sizeId is required "}
+                self.wfile.write(json.dumps(response).encode())
+                return
+            if post_body.get("styleId") is None:
+                self._set_headers(400)
+                response = {"message": " styleId is required "}
+                self.wfile.write(json.dumps(response).encode())
+                return
+            if post_body.get("jewelryId") is None:
+                self._set_headers(400)
+                response = {"message": " jewelryId is required "}
+                self.wfile.write(json.dumps(response).encode())
+                return
+            if post_body.get("timestamp") is None:
+                self._set_headers(400)
+                response = {"message": " timestamp is required "}
+                self.wfile.write(json.dumps(response).encode())
+                return
+            
             new_order = create_order(post_body)
             response = new_order
 
+        self._set_headers(201)
         self.wfile.write(json.dumps(response).encode())
 
     # A method that handles any PUT request.
     def do_PUT(self):
-        self._set_headers(204)
+        self._set_headers(403)
         content_len = int(self.headers.get('content-length', 0))
         post_body = self.rfile.read(content_len)
         post_body = json.loads(post_body)
@@ -84,12 +113,12 @@ class HandleRequests(BaseHTTPRequestHandler):
         # Parse the URL
         (resource, id) = self.parse_url(self.path)
 
-        # Delete a single order from the list
+        # Update a single order from the list
         if resource == "orders":
-            update_order(id, post_body)
+            response = {"message": " Modification of orders is forbidden "}
 
         # Encode the new order and send in response
-        self.wfile.write("".encode())
+        self.wfile.write(json.dumps(response).encode())
 
     def _set_headers(self, status):
         """Sets the status code, Content-Type and Access-Control-Allow-Origin
