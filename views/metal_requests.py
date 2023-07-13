@@ -1,17 +1,37 @@
 from models import Metal
 
 METALS = [
-    Metal(1, "Sterling Silver", 12.42),
-    Metal(2, "14K Gold", 736.4),
-    Metal(3, "24K Gold", 1258.9),
-    Metal(4, "Platinum", 795.45),
-    Metal(5, "Palladium", 1241)
+    {
+      "id": 1,
+      "metal": "Sterling Silver",
+      "price": 12.42
+    },
+    {
+      "id": 2,
+      "metal": "14K Gold",
+      "price": 736.4
+    },
+    {
+      "id": 3,
+      "metal": "24K Gold",
+      "price": 1258.9
+    },
+    {
+      "id": 4,
+      "metal": "Platinum",
+      "price": 795.45
+    },
+    {
+      "id": 5,
+      "metal": "Palladium",
+      "price": 1241
+    }
 ]
 
 
 def create_metal(metal):
     # Get the id value of the last metal in the list
-    max_id = METALS[-1].id
+    max_id = METALS[-1]["id"]
 
     # Add 1 to whatever that number is
     new_id = max_id + 1
@@ -41,7 +61,7 @@ def get_single_metal(id):
     for metal in METALS:
         # Dictionaries in Python use [] notation to find a key
         # instead of the dot notation that JavaScript used.
-        if metal.id == id:
+        if metal["id"] == id:
             requested_metal = metal
 
     return requested_metal
