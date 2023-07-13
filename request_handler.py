@@ -48,15 +48,18 @@ class HandleRequests(BaseHTTPRequestHandler):
         # Parse the URL
         (resource, id) = self.parse_url(self.path)
 
-        response = method_mapper[resource]["create"](resource, post_body)
+        if resource == "orders":
+            response = method_mapper[resource]["create"](resource, post_body)
+            self._set_headers(201)
+            # Encode the new animal and send in response
+            self.wfile.write(json.dumps(response).encode())
+            return
 
-        self._set_headers(201)
-        # Encode the new animal and send in response
-        self.wfile.write(json.dumps(response).encode())
+        self._set_headers(403)
+        self.wfile.write("Creation Forbidden".encode())
 
     # A method that handles any PUT request.
     def do_PUT(self):
-        self._set_headers(403)
         content_len = int(self.headers.get('content-length', 0))
         post_body = self.rfile.read(content_len)
         post_body = json.loads(post_body)
@@ -64,10 +67,14 @@ class HandleRequests(BaseHTTPRequestHandler):
         # Parse the URL
         (resource, id) = self.parse_url(self.path)
 
-        method_mapper[resource]["update"](id, resource, post_body)
-
-        # Encode the new animal and send in response
-        self.wfile.write("".encode())
+        if resource == "metals":
+            self._set_headers(204)
+            method_mapper[resource]["update"](id, resource, post_body)
+            self.wfile.write("".encode())
+            return
+        
+        self._set_headers(403)
+        self.wfile.write("Alteration Forbidden".encode())
 
     def _set_headers(self, status):
         # Notice this Docstring also includes information about the arguments passed to the function
