@@ -103,7 +103,7 @@ DATABASE = {
             "price": 3638
         }
     ],
-    "style": [
+    "styles": [
         {
             "id": 1,
             "style": "Classic",
@@ -123,8 +123,44 @@ DATABASE = {
 }
 
 
+def get_price(resource, requested_resource):
+
+    if requested_resource is not None:
+        single_response = requested_resource
+
+    response = DATABASE[resource]
+    metal_list = DATABASE["metals"]
+    style_list = DATABASE["styles"]
+    size_list = DATABASE["sizes"]
+
+    for single_response in response:
+        for metal in metal_list:
+            if single_response["metalId"] == metal["id"]:
+                matching_metal = metal
+                break
+
+        for style in style_list:
+            if single_response["styleId"] == style["id"]:
+                matching_style = style
+                break
+
+        for size in size_list:
+            if single_response["sizeId"] == size["id"]:
+                matching_size = size
+                break
+
+        single_response["price"] = matching_metal["price"] + \
+            matching_style["price"] + \
+            matching_size["price"]
+
+    return response
+
+
 def all(resource):
     """For GET requests to collection"""
+    if resource == "orders":
+        get_price(resource, None)
+
     return DATABASE[resource]
 
 
@@ -138,8 +174,24 @@ def retrieve(resource, id):
     for single_resource in resource_list:
         if single_resource["id"] == id:
             requested_resource = single_resource
+            break
+
+    if resource == "orders":
+        get_price(resource, requested_resource)
 
     return requested_resource
+
+
+def expand(response, resource):
+    expand_list = DATABASE[f"{resource}s"]
+
+    for single_resource in expand_list:
+        if single_resource["id"] == response[f"{resource}Id"]:
+            response[f"{resource}"] = single_resource
+            response.pop(f"{resource}Id")
+            break
+
+    return response
 
 
 def create(resource, post_body):

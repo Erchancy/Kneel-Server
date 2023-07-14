@@ -1,6 +1,8 @@
 import json
 from http.server import BaseHTTPRequestHandler, HTTPServer
-from repository import retrieve, all, create, update, delete
+from repository import retrieve, all, create, update, delete, expand
+# Import this stdlib package first
+from urllib.parse import urlparse
 
 method_mapper = {
     "metals": {"single": retrieve, "all": all, "create": create, "update": update, "delete": delete},
@@ -32,8 +34,16 @@ class HandleRequests(BaseHTTPRequestHandler):
     # It handles any GET request.
     def do_GET(self):
         response = None
-        (resource, id) = self.parse_url(self.path)
+        (resource, id, query_params) = self.parse_url(self.path)
         response = self.get_all_or_single(resource, id)
+
+        if "_expand=metalId" in query_params:
+            expand(response, "metal")
+        if "_expand=styleId" in query_params:
+            expand(response, "style")
+        if "_expand=sizeId" in query_params:
+            expand(response, "size")
+
         self.wfile.write(json.dumps(response).encode())
 
     # Here's a method on the class that overrides the parent's method.
@@ -46,7 +56,7 @@ class HandleRequests(BaseHTTPRequestHandler):
         post_body = json.loads(post_body)
 
         # Parse the URL
-        (resource, id) = self.parse_url(self.path)
+        (resource, id, query_params) = self.parse_url(self.path)
 
         if resource == "orders":
             response = method_mapper[resource]["create"](resource, post_body)
@@ -65,14 +75,14 @@ class HandleRequests(BaseHTTPRequestHandler):
         post_body = json.loads(post_body)
 
         # Parse the URL
-        (resource, id) = self.parse_url(self.path)
+        (resource, id, query_params) = self.parse_url(self.path)
 
         if resource == "metals":
             self._set_headers(204)
             method_mapper[resource]["update"](id, resource, post_body)
             self.wfile.write("".encode())
             return
-        
+
         self._set_headers(403)
         self.wfile.write("Alteration Forbidden".encode())
 
@@ -102,30 +112,25 @@ class HandleRequests(BaseHTTPRequestHandler):
         self.end_headers()
 
     def parse_url(self, path):
-        # Just like splitting a string in JavaScript. If the
-        # path is "/animals/1", the resulting list will
-        # have "" at index 0, "animals" at index 1, and "1"
-        # at index 2.
-        path_params = path.split("/")
-        resource = path_params[1]
+        url_components = urlparse(path)
+        path_params = url_components.path.strip("/").split("/")
+        query_params = url_components.query.split("&")
+        resource = path_params[0]
         id = None
 
-        # Try to get the item at index 2
         try:
-            # Convert the string "1" to the integer 1
-            # This is the new parseInt()
-            id = int(path_params[2])
+            id = int(path_params[1])
         except IndexError:
-            pass  # No route parameter exists: /animals
+            pass
         except ValueError:
-            pass  # Request had trailing slash: /animals/
+            pass
 
-        return (resource, id)  # This is a tuple
+        return (resource, id, query_params)
 
     def do_DELETE(self):
 
         # Parse the URL
-        (resource, id) = self.parse_url(self.path)
+        (resource, id, query_params) = self.parse_url(self.path)
 
         method_mapper[resource]["delete"](id, resource)
 
