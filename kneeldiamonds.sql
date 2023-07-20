@@ -52,13 +52,29 @@ INSERT INTO `Sizes` VALUES (null, 2, 3638);
 INSERT INTO `Orders` VALUES (null, 1, 2, 2, 1, 0);
 INSERT INTO `Orders` VALUES (null, 1, 1, 3, 2, 0);
 INSERT INTO `Orders` VALUES (null, 5, 5, 3, 3, 0);
-INSERT INTO `Orders` VALUES (null, 5, 5, 3, 1, 0);
+INSERT INTO `Orders` VALUES (null, 5, 3, 5, 1, 0);
 INSERT INTO `Orders` VALUES (null, 2, 2, 2, 2, 0);
-INSERT INTO `Orders` VALUES (null, 1, 4, 3, 1, 0);
+INSERT INTO `Orders` VALUES (null, 1, 3, 4, 1, 0);
 
 
-SELECT *
-FROM Orders
-JOIN Metals
-ON orders.metal_id = metals.id;
+SELECT
+    o.id,
+    o.time_stamp,
+    o.size_id,
+    o.style_id,
+    o.metal_id,
+    m.metal,
+    m.price,
+    st.style,
+    st.price,
+    s.carets,
+    s.price
+FROM `Orders` o
+JOIN Metals m
+    ON m.id = o.metal_id
+JOIN Styles st
+    ON st.id = o.style_id
+JOIN Sizes s
+    ON s.id = o.size_id;
 
+    DROP TABLE Orders;

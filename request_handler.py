@@ -37,11 +37,11 @@ class HandleRequests(BaseHTTPRequestHandler):
         (resource, id, query_params) = self.parse_url(self.path)
         response = self.get_all_or_single(resource, id)
 
-        if "_expand=metalId" in query_params:
+        if "_expand=metal_id" in query_params:
             expand(response, "metal")
-        if "_expand=styleId" in query_params:
+        if "_expand=style_id" in query_params:
             expand(response, "style")
-        if "_expand=sizeId" in query_params:
+        if "_expand=size_id" in query_params:
             expand(response, "size")
 
         self.wfile.write(json.dumps(response).encode())
@@ -79,7 +79,7 @@ class HandleRequests(BaseHTTPRequestHandler):
 
         if resource == "metals":
             self._set_headers(204)
-            method_mapper[resource]["update"](id, resource, post_body)
+            method_mapper[resource]["update"](id, post_body)
             self.wfile.write("".encode())
             return
 
@@ -131,12 +131,14 @@ class HandleRequests(BaseHTTPRequestHandler):
 
         # Parse the URL
         (resource, id, query_params) = self.parse_url(self.path)
-
-        method_mapper[resource]["delete"](id, resource)
-
+        if resource == "orders":
+                    method_mapper[resource]["delete"](id, resource)
+                    self._set_headers(204)
+                    return
+        
         # Set a 204 response code
-        self._set_headers(204)
-        self.wfile.write("".encode())
+        self._set_headers(403)
+        self.wfile.write("Deletion Forbidden".encode())
 
 
 # This function is not inside the class. It is the starting

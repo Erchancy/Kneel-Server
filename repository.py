@@ -1,3 +1,7 @@
+import sqlite3
+import json
+from models import Metal, Style, Size, Order
+
 DATABASE = {
     "metals": [
         {
@@ -158,37 +162,205 @@ def get_price(resource, requested_resource):
 
 def all(resource):
     """For GET requests to collection"""
-    if resource == "orders":
-        get_price(resource, None)
+    # Open a connection to the database
+    with sqlite3.connect("./kneeldiamonds.sqlite3") as conn:
 
-    return DATABASE[resource]
+        # Just use these. It's a Black Box.
+        conn.row_factory = sqlite3.Row
+        db_cursor = conn.cursor()
 
+        if resource == "metals":
+            db_cursor.execute("""
+            SELECT
+                m.id,
+                m.metal,
+                m.price
+            FROM Metals m
+            """)
+
+        if resource == "styles":
+            db_cursor.execute("""
+            SELECT
+                st.id,
+                st.style,
+                st.price
+            FROM Styles st
+            """)
+
+        if resource == "sizes":
+            db_cursor.execute("""
+            SELECT
+                s.id,
+                s.carets,
+                s.price
+            FROM Sizes s
+            """)
+
+        if resource == "orders":
+            db_cursor.execute("""
+            SELECT
+                o.id,
+                o.time_stamp,
+                o.size_id,
+                o.style_id,
+                o.metal_id,
+                o.jewelry_id,
+                m.metal,
+                m.price,
+                st.style,
+                st.price,
+                s.carets,
+                s.price
+            FROM `Orders` o
+            JOIN Metals m
+                ON m.id = o.metal_id
+            JOIN Styles st
+                ON st.id = o.style_id
+            JOIN Sizes s
+                ON s.id = o.size_id
+            """)
+
+        response = []
+        metals = []
+        styles = []
+        sizes = []
+        orders = []
+
+        # Convert rows of data into a Python list
+        dataset = db_cursor.fetchall()
+
+        # Iterate list of data returned from database
+        for row in dataset:
+
+            if resource == "metals":
+
+                metal = Metal(row['id'], row['metal'], row['price'])
+
+                metals.append(metal.__dict__)
+
+                response = metals
+
+            if resource == "styles":
+
+                style = Style(row['id'], row['style'], row['price'])
+
+                styles.append(style.__dict__)
+
+                response = styles
+
+            if resource == "sizes":
+
+                size = Size(row['id'], row['carets'], row['price'])
+
+                sizes.append(size.__dict__)
+
+                response = sizes
+
+            if resource == "orders":
+
+                order = Order(row['id'], row['metal_id'], row['style_id'], row['size_id'],
+                              row['jewelry_id'], row['time_stamp'])
+                metal = Metal(row['id'], row['metal'], row['price'])
+                style = Style(row['id'], row['style'], row['price'])
+                size = Size(row['id'], row['carets'], row['price'])
+
+                order.metal = metal.__dict__
+                order.style = style.__dict__
+                order.size = size.__dict__
+
+                orders.append(order.__dict__)
+
+                response = orders
+
+        return response
 
 def retrieve(resource, id):
     """For GET requests to a single resource"""
-    # Variable to hold the found animal, if it exists
-    requested_resource = None
+    # Open a connection to the database
+    with sqlite3.connect("./kneeldiamonds.sqlite3") as conn:
 
-    resource_list = DATABASE[resource]
+        # Just use these. It's a Black Box.
+        conn.row_factory = sqlite3.Row
+        db_cursor = conn.cursor()
 
-    for single_resource in resource_list:
-        if single_resource["id"] == id:
-            requested_resource = single_resource
-            break
+        if resource == "metals":
+            db_cursor.execute("""
+            SELECT
+                m.id,
+                m.metal,
+                m.price
+            FROM Metals m
+            WHERE m.id = ?
+            """, (id, ))
 
-    if resource == "orders":
-        get_price(resource, requested_resource)
+            # Load the single result into memory
+            data = db_cursor.fetchone()
 
-    return requested_resource
+            # Create an resource_list instance from the current row
+            resource_list = Metal(data['id'], data['metal'], data['price'])
+
+        if resource == "styles":
+            db_cursor.execute("""
+            SELECT
+                st.id,
+                st.style,
+                st.price
+            FROM Styles st
+            WHERE st.id = ?
+            """, (id, ))
+
+            # Load the single result into memory
+            data = db_cursor.fetchone()
+
+            # Create an resource_list instance from the current row
+            resource_list = Style(data['id'], data['Style'], data['price'])
+
+        if resource == "sizes":
+            db_cursor.execute("""
+            SELECT
+                s.id,
+                s.carets,
+                s.price
+            FROM Sizes s
+            WHERE s.id = ?
+            """, (id, ))
+
+            # Load the single result into memory
+            data = db_cursor.fetchone()
+
+            # Create an resource_list instance from the current row
+            resource_list = Size(data['id'], data['carets'], data['price'])
+
+        if resource == "orders":
+            db_cursor.execute("""
+            SELECT
+                o.id,
+                o.metal_id,
+                o.style_id,
+                o.size_id,
+                o.jewelry_id,
+                o.time_stamp
+            FROM Orders o
+            WHERE o.id = ?
+            """, (id, ))
+
+            # Load the single result into memory
+            data = db_cursor.fetchone()
+
+            # Create an resource_list instance from the current row
+            resource_list = Order(data['id'], data['metal_id'], data['style_id'], data['size_id'],
+                              data['jewelry_id'], data['time_stamp'])
+
+        return resource_list.__dict__
 
 
 def expand(response, resource):
     expand_list = DATABASE[f"{resource}s"]
 
     for single_resource in expand_list:
-        if single_resource["id"] == response[f"{resource}Id"]:
+        if single_resource["id"] == response[f"{resource}_id"]:
             response[f"{resource}"] = single_resource
-            response.pop(f"{resource}Id")
+            response.pop(f"{resource}_id")
             break
 
     return response
@@ -196,49 +368,139 @@ def expand(response, resource):
 
 def create(resource, post_body):
     """For POST requests to a collection"""
-    resource_list = DATABASE[resource]
+    with sqlite3.connect("./kneeldiamonds.sqlite3") as conn:
+        db_cursor = conn.cursor()
 
-    max_id = resource_list[-1]["id"]
+        if resource == "metals":
+            db_cursor.execute("""
+            INSERT INTO Metals
+                ( metal, price )
+            VALUES
+                ( ?, ?);
+            """, (post_body['metal'], post_body['price']))
 
-    # Add 1 to whatever that number is
-    new_id = max_id + 1
+            # The `lastrowid` property on the cursor will return
+            # the primary key of the last thing that got added to
+            # the database.
+            id = db_cursor.lastrowid
 
-    # Add an `id` property to the dictionary
-    post_body["id"] = new_id
+            # Add the `id` property to the animal dictionary that
+            # was sent by the client so that the client sees the
+            # primary key in the response.
+            post_body['id'] = id
+            response = post_body
 
-    # Add the new resource dictionary to the list
-    resource_list.append(post_body)
+        if resource == "styles":
+            db_cursor.execute("""
+            INSERT INTO Styles
+                ( style, price )
+            VALUES
+                ( ?, ?);
+            """, (post_body['style'], post_body['price']))
 
-    # Return the dictionary with `id` property added
-    return post_body
+            # The `lastrowid` property on the cursor will return
+            # the primary key of the last thing that got added to
+            # the database.
+            id = db_cursor.lastrowid
+
+            # Add the `id` property to the animal dictionary that
+            # was sent by the client so that the client sees the
+            # primary key in the response.
+            post_body['id'] = id
+            response = post_body
+
+        if resource == "sizes":
+            db_cursor.execute("""
+            INSERT INTO Sizes
+                ( carets, price )
+            VALUES
+                ( ?, ?);
+            """, (post_body['carets'], post_body['price']))
+
+            # The `lastrowid` property on the cursor will return
+            # the primary key of the last thing that got added to
+            # the database.
+            id = db_cursor.lastrowid
+
+            # Add the `id` property to the animal dictionary that
+            # was sent by the client so that the client sees the
+            # primary key in the response.
+            post_body['id'] = id
+            response = post_body
+
+        if resource == "orders":
+            db_cursor.execute("""
+            INSERT INTO Orders
+                ( metal_id, style_id, size_id, jewelry_id, time_stamp )
+            VALUES
+                ( ?, ?, ?, ?, ?);
+            """, (post_body['metal_id'], post_body['style_id'], post_body['size_id']
+                  , post_body['jewelry_id'], post_body['time_stamp']))
+
+            # The `lastrowid` property on the cursor will return
+            # the primary key of the last thing that got added to
+            # the database.
+            id = db_cursor.lastrowid
+
+            # Add the `id` property to the animal dictionary that
+            # was sent by the client so that the client sees the
+            # primary key in the response.
+            post_body['id'] = id
+            response = post_body
+
+    return response
 
 
-def update(id, resource, post_body):
+def update(id, post_body):
     """For PUT requests to a single resource"""
-    # Iterate the nested list, but use enumerate() so that
-    # you can access the index value of each item.
-    resource_list = DATABASE[resource]
+    with sqlite3.connect("./kneeldiamonds.sqlite3") as conn:
+        db_cursor = conn.cursor()
 
-    for index, single_resource in enumerate(resource_list):
-        if single_resource["id"] == id:
-            # Found the single_resource. Update the value.
-            resource_list[index] = post_body
-            break
+        db_cursor.execute("""
+        UPDATE Metals
+            SET
+                metal = ?,
+                price = ?
+        WHERE id = ?
+        """, (post_body['metal'], post_body['price'], id, ))
+
+        # Were any rows affected?
+        # Did the client send an `id` that exists?
+        rows_affected = db_cursor.rowcount
+
+    if rows_affected == 0:
+        # Forces 404 response by main module
+        return False
+    else:
+        # Forces 204 response by main module
+        return True
 
 
 def delete(id, resource):
     """For DELETE requests to a single resource"""
-    resource_list = DATABASE[resource]
+    with sqlite3.connect("./kneeldiamonds.sqlite3") as conn:
+        db_cursor = conn.cursor()
 
-    resource_index = -1
+        if resource == "metals":
+            db_cursor.execute("""
+            DELETE FROM Metals
+            WHERE id = ?
+            """, (id, ))
 
-    # Iterate the nested list, but use enumerate() so that you
-    # can access the index value of each item
-    for index, single_resource in enumerate(resource_list):
-        if single_resource["id"] == id:
-            # Found the single_resource. Store the current index.
-            resource_index = index
+        if resource == "styles":
+            db_cursor.execute("""
+            DELETE FROM Styles
+            WHERE id = ?
+            """, (id, ))
 
-    # If the resource was found, use pop(int) to remove it from list
-    if resource_index >= 0:
-        resource_list.pop(resource_index)
+        if resource == "sizes":
+            db_cursor.execute("""
+            DELETE FROM Sizes
+            WHERE id = ?
+            """, (id, ))
+
+        if resource == "orders":
+            db_cursor.execute("""
+            DELETE FROM Orders
+            WHERE id = ?
+            """, (id, ))
